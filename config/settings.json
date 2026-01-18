@@ -1,0 +1,9 @@
+{
+  "telegram_enabled": true,
+  "telegram_screenshot": true,
+  "telegram_gif": true,
+  "detection_threshold": 71,
+  "retention_hours": 48,
+  "theme": "dark",
+  "notification_cooldown_seconds": 300
+}

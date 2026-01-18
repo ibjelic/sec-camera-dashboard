@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Camera Dashboard</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Status Bar -->
+    <header class="top-status">
+      <div class="top-status-inner">
+        <div class="status-left">
+          <div class="logo">Security Camera</div>
+          <div class="status-indicators">
+            <div class="status-item">
+              <span class="status-dot" id="status-recorder"></span>
+              <span>Recording</span>
+            </div>
+            <div class="status-item">
+              <span class="status-dot" id="status-stream"></span>
+              <span>Stream</span>
+            </div>
+            <div class="status-item">
+              <span class="status-dot" id="status-detector"></span>
+              <span>Detection</span>
+            </div>
+          </div>
+        </div>
+        <div class="status-right">
+          <div class="theme-toggle" id="theme-toggle">
+            <span class="theme-icon" id="theme-icon">&#9790;</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content -->
+    <main class="dashboard-masonry">
+      <!-- Live Preview Card -->
+      <section class="card" id="live-preview-card">
+        <div class="collapsible-header" onclick="toggleCollapse('live-preview')">
+          <div class="collapsible-title">Live Preview</div>
+          <span class="collapse-icon">&#8250;</span>
+        </div>
+        <div class="collapsible-content" id="live-preview-content">
+          <div class="video-container">
+            <video id="live-video" autoplay muted playsinline></video>
+            <div class="video-overlay">
+              <div class="video-time" id="video-time">--:--:--</div>
+              <div class="video-status">
+                <span class="live-indicator"></span>
+                <span>LIVE</span>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button class="btn btn-small btn-secondary" onclick="restartStream()">Restart Stream</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Detection Timeline Card -->
+      <section class="card" id="timeline-card">
+        <div class="collapsible-header" onclick="toggleCollapse('timeline')">
+          <div class="collapsible-title">Detection Timeline</div>
+          <span class="collapse-icon">&#8250;</span>
+        </div>
+        <div class="collapsible-content" id="timeline-content">
+          <!-- Timeline Video Player -->
+          <div id="timeline-player" class="timeline-player">
+            <div class="video-container">
+              <video id="timeline-video" controls playsinline preload="metadata"></video>
+              <div class="video-overlay">
+                <div class="video-time" id="timeline-video-time">--:--:--</div>
+              </div>
+            </div>
+            <div class="timeline-player-meta">
+              <span class="file-meta" id="timeline-video-info">Click on timeline to load recording</span>
+              <button class="btn btn-small btn-secondary" onclick="timeline.closePlayer()">Clear</button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-1h">0</div>
+              <div class="stat-label">Last Hour</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-24h">0</div>
+              <div class="stat-label">Last 24h</div>
+            </div>
+          </div>
+          <div class="range-selector">
+            <button class="range-btn" data-range="10m">10m</button>
+            <button class="range-btn" data-range="30m">30m</button>
+            <button class="range-btn" data-range="1h">1h</button>
+            <button class="range-btn" data-range="6h">6h</button>
+            <button class="range-btn" data-range="12h">12h</button>
+            <button class="range-btn active" data-range="24h">24h</button>
+            <button class="range-btn" data-range="48h">48h</button>
+          </div>
+          <div class="chart-container timeline-strip" style="cursor: pointer;">
+            <canvas id="detection-chart"></canvas>
+          </div>
+          <div id="timeline-ruler" class="timeline-ruler"></div>
+          <div class="timeline-hint">
+            Click on the timeline to play recording from that time
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Detections Card -->
+      <section class="card" id="events-card">
+        <div class="collapsible-header" onclick="toggleCollapse('events')">
+          <div class="collapsible-title">Recent Detections</div>
+          <span class="collapse-icon">&#8250;</span>
+        </div>
+        <div class="collapsible-content" id="events-content">
+          <div class="event-list" id="event-list">
+            <div class="event-item" style="color: var(--muted); justify-content: center;">
+              No detections yet
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recordings Card -->
+      <section class="card" id="recordings-card">
+        <div class="collapsible-header" onclick="toggleCollapse('recordings')">
+          <div class="collapsible-title">Recordings</div>
+          <span class="collapse-icon">&#8250;</span>
+        </div>
+        <div class="collapsible-content" id="recordings-content">
+          <div class="date-navigator">
+            <button class="date-nav-btn" onclick="navigateDate(-1)">&#8249;</button>
+            <span class="current-date" id="current-date">--</span>
+            <button class="date-nav-btn" onclick="navigateDate(1)">&#8250;</button>
+          </div>
+          <div class="file-list" id="file-list">
+            <div class="file-item" style="color: var(--muted); justify-content: center;">
+              Loading recordings...
+            </div>
+          </div>
+          <div id="recording-player" style="display: none; margin-top: 16px;">
+            <div class="video-container">
+              <video id="recording-video" controls playsinline preload="metadata"></video>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Storage Monitor Card -->
+      <section class="card" id="storage-card">
+        <div class="collapsible-header" onclick="toggleCollapse('storage')">
+          <div class="collapsible-title">Storage</div>
+          <span class="collapse-icon">&#8250;</span>
+        </div>
+        <div class="collapsible-content" id="storage-content">
+          <div class="storage-bar">
+            <div class="storage-fill" id="storage-fill" style="width: 0%"></div>
+          </div>
+          <div class="storage-stats">
+            <span>Used: <span class="storage-value" id="storage-used">--</span></span>
+            <span>Free: <span class="storage-value" id="storage-free">--</span></span>
+          </div>
+          <div style="margin-top: 12px; font-size: 13px; color: var(--muted);">
+            Recordings: <span class="storage-value" id="storage-recordings">--</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings Card -->
+      <section class="card" id="settings-card">
+        <div class="collapsible-header" onclick="toggleCollapse('settings')">
+          <div class="collapsible-title">Settings</div>
+          <span class="collapse-icon">&#8250;</span>
+        </div>
+        <div class="collapsible-content" id="settings-content">
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-name">Telegram Notifications</span>
+              <span class="setting-desc">Send alerts on detection</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-telegram-enabled" onchange="updateSetting('telegram_enabled', this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-name">Send Screenshot</span>
+              <span class="setting-desc">Include image in notifications</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-telegram-screenshot" onchange="updateSetting('telegram_screenshot', this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-name">Send GIF</span>
+              <span class="setting-desc">Include 10s clip in notifications</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-telegram-gif" onchange="updateSetting('telegram_gif', this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-name">Motion Threshold</span>
+              <span class="setting-desc">Change: <span id="threshold-value">50</span>%</span>
+            </div>
+            <input type="range" class="slider-input" id="setting-threshold"
+                   min="10" max="100" value="50" style="width: 120px;"
+                   oninput="document.getElementById('threshold-value').textContent = this.value"
+                   onchange="updateSetting('detection_threshold', parseInt(this.value))">
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-name">Retention Period</span>
+              <span class="setting-desc">Keep recordings for</span>
+            </div>
+            <select class="btn btn-small btn-secondary" id="setting-retention"
+                    onchange="updateSetting('retention_hours', parseInt(this.value))" style="width: 100px;">
+              <option value="12">12 hours</option>
+              <option value="24">24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="72">72 hours</option>
+              <option value="168">1 week</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-name">Notification Cooldown</span>
+              <span class="setting-desc">Seconds between alerts</span>
+            </div>
+            <select class="btn btn-small btn-secondary" id="setting-cooldown"
+                    onchange="updateSetting('notification_cooldown_seconds', parseInt(this.value))" style="width: 100px;">
+              <option value="30">30 sec</option>
+              <option value="60">1 min</option>
+              <option value="120">2 min</option>
+              <option value="300">5 min</option>
+            </select>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <button class="btn" onclick="testTelegram()">Test Telegram</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="/static/js/services/api.js"></script>
+  <script src="/static/js/services/websocket.js"></script>
+  <script src="/static/js/components/live-preview.js"></script>
+  <script src="/static/js/components/timeline.js"></script>
+  <script src="/static/js/components/file-browser.js"></script>
+  <script src="/static/js/components/storage-monitor.js"></script>
+  <script src="/static/js/components/settings-panel.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
