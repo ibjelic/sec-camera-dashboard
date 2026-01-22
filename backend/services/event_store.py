@@ -32,6 +32,8 @@ class EventStore:
                 analysis TEXT,
                 analysis_confidence REAL,
                 analysis_model TEXT,
+                analysis_importance INTEGER,
+                analysis_send_gif INTEGER,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -41,7 +43,13 @@ class EventStore:
         """)
 
         await self._ensure_columns(
-            ["analysis", "analysis_confidence", "analysis_model"]
+            [
+                "analysis",
+                "analysis_confidence",
+                "analysis_model",
+                "analysis_importance",
+                "analysis_send_gif"
+            ]
         )
 
         await self._db.commit()
@@ -55,10 +63,10 @@ class EventStore:
         for column in columns:
             if column in existing:
                 continue
-            if column == "analysis":
+            if column in ("analysis", "analysis_model"):
                 col_type = "TEXT"
-            elif column == "analysis_model":
-                col_type = "TEXT"
+            elif column in ("analysis_importance", "analysis_send_gif"):
+                col_type = "INTEGER"
             else:
                 col_type = "REAL"
             await self._db.execute(
@@ -78,7 +86,9 @@ class EventStore:
         thumbnail_path: Optional[str] = None,
         analysis: Optional[str] = None,
         analysis_confidence: Optional[float] = None,
-        analysis_model: Optional[str] = None
+        analysis_model: Optional[str] = None,
+        analysis_importance: Optional[int] = None,
+        analysis_send_gif: Optional[bool] = None
     ) -> int:
         """Add a detection event."""
         async with self._lock:
@@ -90,9 +100,11 @@ class EventStore:
                     thumbnail_path,
                     analysis,
                     analysis_confidence,
-                    analysis_model
+                    analysis_model,
+                    analysis_importance,
+                    analysis_send_gif
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     timestamp.isoformat(),
@@ -100,7 +112,9 @@ class EventStore:
                     thumbnail_path,
                     analysis,
                     analysis_confidence,
-                    analysis_model
+                    analysis_model,
+                    analysis_importance,
+                    1 if analysis_send_gif else 0 if analysis_send_gif is not None else None
                 )
             )
             await self._db.commit()

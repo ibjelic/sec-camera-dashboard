@@ -35,6 +35,14 @@ const API = {
     getHlsUrl() {
       return '/hls/stream.m3u8';
     },
+
+    switchStream(streamType) {
+      return API.request(`/stream/switch/${streamType}`, { method: 'POST' });
+    },
+
+    compareStreams() {
+      return API.request('/stream/compare');
+    },
   },
 
   // Recordings endpoints
@@ -95,6 +103,10 @@ const API = {
 
     testTelegram() {
       return API.request('/settings/test-telegram', { method: 'POST' });
+    },
+
+    testGif() {
+      return API.request('/settings/test-gif', { method: 'POST' });
     },
   },
 

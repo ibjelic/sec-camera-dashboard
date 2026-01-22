@@ -59,6 +59,7 @@ class RuntimeSettings:
         self.retention_hours: int = data.get("retention_hours", 48)
         self.theme: str = data.get("theme", "dark")
         self.notification_cooldown_seconds: int = data.get("notification_cooldown_seconds", 60)
+        self.stream_type: int = data.get("stream_type", 0)
 
     def save(self):
         self._settings_file.parent.mkdir(parents=True, exist_ok=True)
@@ -74,6 +75,7 @@ class RuntimeSettings:
             "retention_hours": self.retention_hours,
             "theme": self.theme,
             "notification_cooldown_seconds": self.notification_cooldown_seconds,
+            "stream_type": self.stream_type,
         }
 
     def update(self, **kwargs):

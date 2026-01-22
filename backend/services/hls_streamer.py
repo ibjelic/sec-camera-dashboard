@@ -17,7 +17,7 @@ class HLSStreamer:
         rtsp_url: str,
         output_dir: Path,
         ws_manager: ConnectionManager,
-        segment_duration: int = 2,  # 2 seconds for low latency
+        segment_duration: int = 3,  # 3 seconds for more stable segments
         playlist_size: int = 5
     ):
         self.rtsp_url = rtsp_url
@@ -85,6 +85,11 @@ class HLSStreamer:
             "ffmpeg",
             "-y",
             "-rtsp_transport", "tcp",
+            "-fflags", "+genpts+discardcorrupt",  # Generate timestamps, discard corrupt frames
+            "-analyzeduration", "1000000",         # 1 second analyze duration
+            "-probesize", "1000000",               # 1MB probe size
+            "-max_delay", "500000",                # 500ms max delay
+            "-reorder_queue_size", "500",          # Buffer for out-of-order packets
             "-i", self.rtsp_url,
             # Video encoding - re-encode for HLS compatibility
             "-c:v", "libx264",

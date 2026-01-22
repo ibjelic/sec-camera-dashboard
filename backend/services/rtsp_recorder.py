@@ -18,15 +18,18 @@ class RTSPRecorder:
         rtsp_url: str,
         output_dir: Path,
         ws_manager: ConnectionManager,
-        segment_duration: int = 600  # 10 minutes
+        segment_duration: int = 600,  # 10 minutes
+        stall_timeout: int = 30  # seconds without output = stall
     ):
         self.rtsp_url = rtsp_url
         self.output_dir = output_dir
         self.ws_manager = ws_manager
         self.segment_duration = segment_duration
+        self.stall_timeout = stall_timeout
         self._process: Optional[subprocess.Popen] = None
         self._running = False
         self._task: Optional[asyncio.Task] = None
+        self._last_output_time: Optional[datetime] = None
 
     @property
     def is_running(self) -> bool:
@@ -77,11 +80,22 @@ class RTSPRecorder:
             "ffmpeg",
             "-y",
             "-rtsp_transport", "tcp",
+            "-fflags", "+genpts+discardcorrupt",   # Generate timestamps, discard corrupt
+            "-analyzeduration", "1000000",         # 1 second analyze
+            "-probesize", "1000000",               # 1MB probe
+            "-max_delay", "500000",                # 500ms max delay
+            "-reorder_queue_size", "500",          # Buffer for out-of-order packets
             "-i", self.rtsp_url,
             # Video only - no audio
             "-an",
-            # Copy HEVC video directly (no re-encoding needed without audio)
-            "-c:v", "copy",
+            # Re-encode to H.264 for browser playback
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-tune", "zerolatency",
+            "-crf", "28",
+            "-g", "50",
+            "-sc_threshold", "0",
+            "-pix_fmt", "yuv420p",
             # Segment output
             "-f", "segment",
             "-segment_time", str(self.segment_duration),
@@ -93,7 +107,7 @@ class RTSPRecorder:
         ]
 
     async def _recording_loop(self):
-        """Main recording loop with auto-reconnection."""
+        """Main recording loop with auto-reconnection and stall detection."""
         retry_delay = 5  # seconds
 
         while self._running:
@@ -106,16 +120,65 @@ class RTSPRecorder:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
+                self._last_output_time = datetime.now()
 
                 await self.ws_manager.send_status_update("recorder", "connected", "Recording in progress")
 
-                # Monitor process
-                while self._running and self._process.poll() is None:
-                    await asyncio.sleep(1)
+                # Track known files for logging new segments
+                known_files = set()
+                last_total_size = 0
 
+                # Monitor process and log new segments
+                while self._running and self._process.poll() is None:
+                    await asyncio.sleep(5)
+
+                    # Update date directory (handles midnight rollover)
+                    date_dir = self.output_dir / datetime.now().strftime("%Y-%m-%d")
+                    date_dir.mkdir(parents=True, exist_ok=True)
+
+                    # Check for new segment files and track output
+                    current_total_size = 0
+                    if date_dir.exists():
+                        current_files = set(f.name for f in date_dir.glob("*.mp4"))
+                        new_files = current_files - known_files
+                        for f in sorted(new_files):
+                            file_path = date_dir / f
+                            size_mb = file_path.stat().st_size / (1024 * 1024)
+                            logger.info(f"Recording segment created: {f} ({size_mb:.2f} MB)")
+                            self._last_output_time = datetime.now()
+                        known_files = current_files
+
+                        # Calculate total size to detect stalls
+                        for f in current_files:
+                            try:
+                                current_total_size += (date_dir / f).stat().st_size
+                            except FileNotFoundError:
+                                pass
+
+                    # Detect stall: no size change means FFmpeg is stuck
+                    if current_total_size > last_total_size:
+                        self._last_output_time = datetime.now()
+                        last_total_size = current_total_size
+                    elif self._last_output_time:
+                        stall_duration = (datetime.now() - self._last_output_time).total_seconds()
+                        if stall_duration > self.stall_timeout:
+                            logger.warning(f"Recording stalled for {stall_duration:.0f}s, restarting FFmpeg...")
+                            self._process.terminate()
+                            try:
+                                self._process.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                self._process.kill()
+                            break
+
+                # Log exit reason
                 if self._process.returncode is not None and self._process.returncode != 0:
                     stderr = self._process.stderr.read().decode() if self._process.stderr else ""
                     logger.error(f"FFmpeg exited with code {self._process.returncode}: {stderr[-500:]}")
+                    await self.ws_manager.send_status_update("recorder", "error", f"FFmpeg error (code {self._process.returncode})")
+
+                # Reset retry delay on successful connection (ran for at least 30s)
+                if self._last_output_time and (datetime.now() - self._last_output_time).total_seconds() < 10:
+                    retry_delay = 5  # Reset backoff on successful recording
 
             except Exception as e:
                 logger.error(f"Recording error: {e}")

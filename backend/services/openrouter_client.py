@@ -59,20 +59,19 @@ class OpenRouterClient:
                 "error": "rate_limited",
             }
 
-        system_prompt = (
-            "You are a vision analyst for security camera frames. "
+        instruction = (
             "Return ONLY valid JSON with keys: "
-            "person_detected (boolean), confidence (0-100 integer), summary (short sentence)."
+            "person_detected (boolean), confidence (0-100 integer), "
+            "importance (1-5 integer), send_gif (boolean), summary (short sentence)."
         )
 
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": prompt},
+                        {"type": "text", "text": f"{instruction}\n{prompt}"},
                         {
                             "type": "image_url",
                             "image_url": {
@@ -139,10 +138,20 @@ class OpenRouterClient:
                 "error": "parse_failed",
             }
 
+        person_detected = parsed.get("person_detected")
+        if isinstance(person_detected, str):
+            person_detected = person_detected.strip().lower() == "true"
+
+        send_gif = parsed.get("send_gif")
+        if isinstance(send_gif, str):
+            send_gif = send_gif.strip().lower() == "true"
+
         return {
             "summary": str(parsed.get("summary", "")).strip(),
-            "person_detected": parsed.get("person_detected"),
+            "person_detected": person_detected,
             "confidence": int(parsed.get("confidence", 0) or 0),
+            "importance": int(parsed.get("importance", 0) or 0),
+            "send_gif": send_gif if send_gif is not None else None,
             "model": self.model,
             "error": None,
         }

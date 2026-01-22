@@ -101,3 +101,22 @@ async def reload_settings():
     except Exception as e:
         logger.error(f"Failed to reload settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-gif")
+async def test_gif(request: Request):
+    """Send a test GIF (records next 10 seconds from live stream) to Telegram.
+
+    This endpoint returns immediately after starting the recording.
+    The GIF will be sent to Telegram once recording completes (~15 seconds).
+    """
+    import asyncio
+    notification_service = request.app.state.notification_service
+
+    try:
+        # Run in background so API returns quickly
+        asyncio.create_task(notification_service.send_test_gif())
+        return {"status": "recording", "message": "Recording 10 second clip... Check Telegram in ~15 seconds"}
+    except Exception as e:
+        logger.error(f"Test GIF failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

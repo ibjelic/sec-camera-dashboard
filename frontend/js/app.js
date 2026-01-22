@@ -95,6 +95,12 @@ function renderEventList(events) {
       const analysisHtml = analysisText
         ? `<div class="event-analysis">${analysisText}</div>`
         : '';
+      const importanceValue = Number.isFinite(event.analysis_importance)
+        ? event.analysis_importance
+        : null;
+      const importanceHtml = importanceValue
+        ? `<div class="event-importance">Importance: ${importanceValue}/5</div>`
+        : '';
       const badgeValue = Number.isFinite(event.analysis_confidence)
         ? Math.round(event.analysis_confidence)
         : Math.round(event.confidence);
@@ -110,6 +116,7 @@ function renderEventList(events) {
             <div class="event-time">${timeStr}</div>
             <div class="event-confidence">${dateStr}</div>
             ${analysisHtml}
+            ${importanceHtml}
           </div>
           <span class="confidence-badge">${badgeValue}%</span>
         </div>

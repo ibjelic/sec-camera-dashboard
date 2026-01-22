@@ -88,6 +88,16 @@ class SettingsPanel {
       showToast('Telegram test failed: ' + error.message, 'error');
     }
   }
+
+  async testGif() {
+    try {
+      showToast('Recording 10s clip... Check Telegram in ~15 sec', 'success');
+      await API.settings.testGif();
+    } catch (error) {
+      console.error('GIF test failed:', error);
+      showToast('GIF test failed: ' + error.message, 'error');
+    }
+  }
 }
 
 // Global instance
@@ -104,5 +114,16 @@ function updateSetting(key, value) {
 function testTelegram() {
   if (settingsPanel) {
     settingsPanel.testTelegram();
+  }
+}
+
+// Global function for testing GIF
+function testGif() {
+  console.log('testGif() called');
+  if (settingsPanel) {
+    console.log('Calling settingsPanel.testGif()');
+    settingsPanel.testGif();
+  } else {
+    console.error('settingsPanel not initialized');
   }
 }

@@ -2,8 +2,9 @@
   "telegram_enabled": true,
   "telegram_screenshot": true,
   "telegram_gif": true,
-  "detection_threshold": 71,
+  "detection_threshold": 35,
   "retention_hours": 48,
   "theme": "dark",
-  "notification_cooldown_seconds": 300
+  "notification_cooldown_seconds": 300,
+  "stream_type": 0
 }

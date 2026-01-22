@@ -12,12 +12,17 @@ class FileBrowser {
   init() {
     this.loadDates();
 
-    // Listen for new recordings
+    // Listen for new recordings - refresh both dates and recordings
     wsClient.on('status', (data) => {
       if (data.service === 'recorder') {
-        this.loadRecordings();
+        this.loadDates();
       }
     });
+
+    // Auto-refresh every 30 seconds to catch new recordings
+    this.refreshInterval = setInterval(() => {
+      this.loadDates();
+    }, 30000);
   }
 
   async loadDates() {

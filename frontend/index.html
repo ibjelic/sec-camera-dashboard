@@ -47,7 +47,7 @@
           <span class="collapse-icon">&#8250;</span>
         </div>
         <div class="collapsible-content" id="live-preview-content">
-          <div class="video-container">
+          <div class="video-container" id="live-video-container">
             <video id="live-video" autoplay muted playsinline></video>
             <div class="video-overlay">
               <div class="video-time" id="video-time">--:--:--</div>
@@ -55,6 +55,13 @@
                 <span class="live-indicator"></span>
                 <span>LIVE</span>
               </div>
+            </div>
+            <div class="zoom-controls">
+              <button class="zoom-btn" onclick="livePreview.zoomOut()" title="Zoom Out">&#8722;</button>
+              <span class="zoom-level" id="zoom-level">100%</span>
+              <button class="zoom-btn" onclick="livePreview.zoomIn()" title="Zoom In">&#43;</button>
+              <button class="zoom-btn" onclick="livePreview.zoomReset()" title="Reset">&#8634;</button>
+              <button class="zoom-btn" onclick="livePreview.toggleFullscreen()" title="Fullscreen">&#9974;</button>
             </div>
           </div>
           <div style="margin-top: 12px; display: flex; gap: 8px;">
@@ -77,6 +84,10 @@
               <div class="video-overlay">
                 <div class="video-time" id="timeline-video-time">--:--:--</div>
               </div>
+            </div>
+            <div class="timeline-scrub-shell">
+              <canvas id="timeline-scrub-canvas"></canvas>
+              <div class="timeline-scrub-labels" id="timeline-scrub-labels"></div>
             </div>
             <div class="timeline-player-meta">
               <span class="file-meta" id="timeline-video-info">Click on timeline to load recording</span>
@@ -103,10 +114,9 @@
             <button class="range-btn active" data-range="24h">24h</button>
             <button class="range-btn" data-range="48h">48h</button>
           </div>
-          <div class="chart-container timeline-strip" style="cursor: pointer;">
+          <div class="chart-container timeline-strip" style="cursor: pointer; display: none;">
             <canvas id="detection-chart"></canvas>
           </div>
-          <div id="timeline-ruler" class="timeline-ruler"></div>
           <div class="timeline-hint">
             Click on the timeline to play recording from that time
           </div>
@@ -253,8 +263,9 @@
             </select>
           </div>
 
-          <div style="margin-top: 16px;">
+          <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn" onclick="testTelegram()">Test Telegram</button>
+            <button class="btn btn-secondary" onclick="testGif()">Test GIF (10s)</button>
           </div>
         </div>
       </section>

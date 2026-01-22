@@ -65,6 +65,10 @@ async def lifespan(app: FastAPI):
     check_ffmpeg()
     setup_directories()
 
+    # All services use HIGH quality stream (streamtype=0)
+    # Low quality stream appears to be broken/audio-only on this camera
+    logger.info(f"Using stream: {settings.rtsp_url_high}")
+
     # Initialize services
     event_store = EventStore(settings.data_dir / "detections" / "events.db")
     await event_store.initialize()
@@ -95,7 +99,7 @@ async def lifespan(app: FastAPI):
     )
 
     hls_streamer = HLSStreamer(
-        rtsp_url=settings.rtsp_url_low,
+        rtsp_url=settings.rtsp_url_high,  # Use high quality (low quality is broken)
         output_dir=settings.data_dir / "hls",
         ws_manager=ws_manager
     )
